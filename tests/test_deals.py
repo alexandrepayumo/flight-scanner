@@ -56,3 +56,20 @@ def test_cool_layover_detection_and_dedup():
     assert len(detect_new_layovers(found, state)) == 1
     record_alerted(state, Analysis([], found))
     assert detect_new_layovers(found, state) == []
+
+
+def test_ranking_prefers_much_faster_option_when_price_is_close():
+    from scanner.deals import Ranking
+
+    slow = itin("outbound", 900, segs=[
+        Segment("YUL", "YYZ", "2026-12-26 06:00", "2026-12-26 07:30", 90),
+        Segment("YYZ", "CUN", "2026-12-26 19:00", "2026-12-26 23:00", 240),
+    ], layovers=[Layover("YYZ", 690)])
+    fast = itin("outbound", 950)
+    back = itin("inbound", 700, "CUN", "YUL")
+    assert best_trip("CUN", "C", [slow, fast], [back], []).outbound is slow
+    rank = Ranking(hour_cost=20)
+    assert best_trip("CUN", "C", [slow, fast], [back], [], rank).outbound is fast
+    # A long layover in a cool city is not penalized.
+    rank = Ranking(hour_cost=20, cool={"YYZ": "Toronto"}, min_layover_hours=5)
+    assert best_trip("CUN", "C", [slow, fast], [back], [], rank).outbound is slow

@@ -72,6 +72,7 @@ class Segment:
 class Layover:
     airport: str
     minutes: int
+    next_airport: str = ""  # differs from airport when you must change airports
 
 
 @dataclass
@@ -130,7 +131,7 @@ def _to_itinerary(raw, *, kind: str, origin: str, destination: str, date: str, u
     for prev, nxt in zip(segments, segments[1:]):
         # Both times are local to the connecting airport, so the difference is exact.
         gap = (_parse_local(nxt.depart) - _parse_local(prev.arrive)).total_seconds() / 60
-        layovers.append(Layover(airport=prev.destination, minutes=int(gap)))
+        layovers.append(Layover(airport=prev.destination, minutes=int(gap), next_airport=nxt.origin))
     return Itinerary(
         kind=kind,
         origin=origin,

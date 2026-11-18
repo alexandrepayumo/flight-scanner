@@ -48,8 +48,36 @@ class Analysis:
     new_layovers: list[CoolLayover] = field(default_factory=list)
 
 
-def _cheapest(items: list[Itinerary]) -> Itinerary | None:
-    return min(items, key=lambda i: (i.price, i.total_minutes), default=None)
+@dataclass
+class Ranking:
+    """How to pick the "best" option among several prices.
+
+    Each hour of travel counts as hour_cost dollars, so a slightly cheaper
+    but much longer itinerary loses. Hours spent on a long layover in a cool
+    city are not penalized, since you'd be visiting.
+    """
+
+    hour_cost: float = 0
+    cool: dict[str, str] = field(default_factory=dict)
+    min_layover_hours: float = 0
+
+    def time_cost(self, it: Itinerary) -> float:
+        minutes = it.total_minutes - sum(
+            l.minutes for l in it.layovers if l.airport in self.cool and l.minutes >= self.min_layover_hours * 60
+        )
+        return self.hour_cost * minutes / 60
+
+    def score(self, it: Itinerary) -> float:
+        return it.price + self.time_cost(it)
+
+    def trip_score(self, t: "Trip") -> float:
+        # Round-trip fares only show the outbound; assume the return takes as long.
+        back = t.inbound or t.outbound
+        return t.price + self.time_cost(t.outbound) + self.time_cost(back)
+
+
+def _best(items: list[Itinerary], rank: Ranking) -> Itinerary | None:
+    return min(items, key=lambda i: (rank.score(i), i.price), default=None)
 
 
 def best_trip(
@@ -58,16 +86,18 @@ def best_trip(
     outbound: list[Itinerary],
     inbound: list[Itinerary],
     roundtrip: list[Itinerary],
+    rank: Ranking | None = None,
 ) -> Trip | None:
-    """Cheapest of: separate one-ways (any return airport) vs. a round-trip fare."""
+    """Best of: separate one-ways (any return airport) vs. a round-trip fare."""
+    rank = rank or Ranking()
     candidates: list[Trip] = []
-    out, back = _cheapest(outbound), _cheapest(inbound)
+    out, back = _best(outbound, rank), _best(inbound, rank)
     if out and back:
         candidates.append(Trip(code, name, out.price + back.price, out, back))
-    rt = _cheapest(roundtrip)
+    rt = _best(roundtrip, rank)
     if rt:
         candidates.append(Trip(code, name, rt.price, rt, None, is_roundtrip_fare=True))
-    return min(candidates, key=lambda t: t.price, default=None)
+    return min(candidates, key=rank.trip_score, default=None)
 
 
 def find_cool_layovers(itins: list[Itinerary], cool: dict[str, str], min_hours: float) -> list[CoolLayover]:

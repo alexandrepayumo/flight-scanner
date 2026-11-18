@@ -22,6 +22,7 @@ import yaml
 from . import emailer
 from .deals import (
     Analysis,
+    Ranking,
     best_trip,
     detect_changes,
     detect_new_layovers,
@@ -63,6 +64,8 @@ def scan(cfg: dict, limit: int | None) -> tuple[Analysis, FlightSearcher, list]:
     origin, out_date, ret_date = trip["origin"], trip["depart_date"], trip["return_date"]
     dests = list(cfg["destinations"].items())[:limit]
 
+    lay = cfg["layovers"]
+    rank = Ranking(cfg["search"].get("hour_cost", 0), lay["cool_cities"], lay["min_hours"])
     trips, all_itins = [], []
     for i, (code, name) in enumerate(dests, 1):
         log.info("[%d/%d] %s (%s)", i, len(dests), name, code)
@@ -72,13 +75,12 @@ def scan(cfg: dict, limit: int | None) -> tuple[Analysis, FlightSearcher, list]:
             inbound += s.one_way(code, home, ret_date, "inbound")
         roundtrip = s.round_trip(origin, code, out_date, ret_date)
         all_itins += outbound + inbound + roundtrip
-        t = best_trip(code, name, outbound, inbound, roundtrip)
+        t = best_trip(code, name, outbound, inbound, roundtrip, rank)
         if t:
             trips.append(t)
             log.info("    best %s total", t.price)
 
     trips.sort(key=lambda t: t.price)
-    lay = cfg["layovers"]
     layovers = find_cool_layovers(all_itins, lay["cool_cities"], lay["min_hours"])
     return Analysis(trips=trips, layovers=layovers), s, all_itins
 
@@ -100,6 +102,11 @@ def main(argv: list[str] | None = None) -> int:
     if now.date() >= date.fromisoformat(cfg["trip"]["depart_date"]):
         log.info("Departure date reached; nothing left to scan.")
         return 0
+
+    missing = [k for k in ("SMTP_USER", "SMTP_PASSWORD", "EMAIL_TO") if not os.environ.get(k)]
+    if missing and not args.dry_run:
+        log.error("Missing email settings: %s. Add them as repository secrets (see README).", ", ".join(missing))
+        return 2
 
     analysis, searcher, itins = scan(cfg, args.limit)
     stats = f"{searcher.requests} searches, {searcher.failures} failed, run at {now:%Y-%m-%d %H:%M} ET."

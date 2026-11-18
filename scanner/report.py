@@ -23,12 +23,18 @@ def _time(s: str) -> str:
     return datetime.strptime(s, "%Y-%m-%d %H:%M").strftime("%b %d %H:%M")
 
 
+def _layover_text(l) -> str:
+    if l.next_airport and l.next_airport != l.airport:
+        return f"{l.airport} {_hm(l.minutes)} (change to {l.next_airport})"
+    return f"{l.airport} {_hm(l.minutes)}"
+
+
 def describe(it: Itinerary) -> str:
     first, last = it.segments[0], it.segments[-1]
     stops = "nonstop" if it.stops == 0 else f"{it.stops} stop" + ("s" if it.stops > 1 else "")
     via = ""
     if it.layovers:
-        via = " via " + ", ".join(f"{l.airport} {_hm(l.minutes)}" for l in it.layovers)
+        via = " via " + ", ".join(_layover_text(l) for l in it.layovers)
     return (
         f"{first.origin}→{last.destination} {_time(first.depart)} → {_time(last.arrive)} · "
         f"{', '.join(it.airlines)} · {stops}{via} · {_hm(it.total_minutes)} total"

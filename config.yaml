@@ -117,5 +117,9 @@ alerts:
   top_n: 12                    # trips listed in the "cheapest overall" table
 
 search:
+  # When picking each destination's best option, count every hour of travel
+  # as this many dollars (for both of you), so a $20-cheaper itinerary with
+  # 10 extra hours of airports loses. 0 = pure cheapest.
+  hour_cost: 20
   delay_seconds: 1.5           # pause between Google Flights requests
   retries: 2
