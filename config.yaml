@@ -1,0 +1,121 @@
+# Trip settings. Prices from Google Flights are the TOTAL for all passengers.
+trip:
+  origin: YUL                  # Montreal-Trudeau
+  depart_date: "2026-12-26"
+  return_date: "2027-01-02"
+  return_airports: [YUL, YYZ, YOW]   # Montreal, Toronto Pearson, Ottawa
+  adults: 2                    # one search for both of you = same plane
+  currency: CAD
+  seat: economy
+
+# Destinations searched every run (IATA airport or metro codes).
+# Each one costs 1 outbound + len(return_airports) inbound searches.
+destinations:
+  # Sun
+  CUN: Cancún
+  PUJ: Punta Cana
+  MBJ: Montego Bay
+  VRA: Varadero
+  SJU: San Juan
+  NAS: Nassau
+  SJO: San José (Costa Rica)
+  LIR: Liberia (Costa Rica)
+  PVR: Puerto Vallarta
+  SJD: Los Cabos
+  AUA: Aruba
+  # Latin American cities
+  MEX: Mexico City
+  BOG: Bogotá
+  MDE: Medellín
+  CTG: Cartagena
+  LIM: Lima
+  PTY: Panama City
+  # USA
+  MIA: Miami
+  FLL: Fort Lauderdale
+  MCO: Orlando
+  LAS: Las Vegas
+  LAX: Los Angeles
+  SFO: San Francisco
+  JFK: New York
+  HNL: Honolulu
+  # Canada
+  YVR: Vancouver
+  # Europe / North Africa
+  LIS: Lisbon
+  OPO: Porto
+  MAD: Madrid
+  BCN: Barcelona
+  CDG: Paris
+  LHR: London
+  DUB: Dublin
+  KEF: Reykjavík
+  AMS: Amsterdam
+  FCO: Rome
+  ATH: Athens
+  RAK: Marrakech
+
+# A layover at least this long in one of these cities is highlighted as a
+# "free mini-visit". Codes are airports where the layover happens.
+layovers:
+  min_hours: 5
+  cool_cities:
+    KEF: Reykjavík
+    LIS: Lisbon
+    OPO: Porto
+    MAD: Madrid
+    BCN: Barcelona
+    CDG: Paris
+    ORY: Paris
+    LHR: London
+    LGW: London
+    DUB: Dublin
+    AMS: Amsterdam
+    FRA: Frankfurt
+    MUC: Munich
+    ZRH: Zurich
+    IST: Istanbul
+    FCO: Rome
+    BRU: Brussels
+    CPH: Copenhagen
+    JFK: New York
+    EWR: New York
+    LGA: New York
+    BOS: Boston
+    ORD: Chicago
+    MIA: Miami
+    FLL: Fort Lauderdale
+    LAX: Los Angeles
+    SFO: San Francisco
+    SEA: Seattle
+    LAS: Las Vegas
+    DEN: Denver
+    IAD: Washington DC
+    DCA: Washington DC
+    ATL: Atlanta
+    MSY: New Orleans
+    AUS: Austin
+    YVR: Vancouver
+    YYC: Calgary
+    YQB: Québec City
+    MEX: Mexico City
+    BOG: Bogotá
+    PTY: Panama City
+    LIM: Lima
+    SJO: San José (Costa Rica)
+    HAV: Havana
+
+# When to send an email.
+alerts:
+  # Re-alert a destination when its cheapest trip (for both of you) drops by
+  # at least this many dollars OR this percent since the last alert for it.
+  min_drop_dollars: 40
+  min_drop_percent: 5
+  # Always send a full summary once per day at this hour (Montreal time),
+  # even if nothing changed, so you know it's still running. null = never.
+  daily_digest_hour: 9
+  top_n: 12                    # trips listed in the "cheapest overall" table
+
+search:
+  delay_seconds: 1.5           # pause between Google Flights requests
+  retries: 2
