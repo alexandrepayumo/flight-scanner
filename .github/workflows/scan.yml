@@ -2,7 +2,7 @@ name: Hourly flight scan
 
 on:
   schedule:
-    - cron: "17 * * * *"   # every hour at :17 (GitHub may delay scheduled runs a few minutes)
+    - cron: "23 * * * *"   # every hour at :23 (GitHub may delay scheduled runs a few minutes)
   workflow_dispatch:
     inputs:
       force_email:
