@@ -120,6 +120,10 @@ def render(analysis: Analysis, cfg: dict, *, is_digest: bool, stats: str) -> tup
         ))
 
     lay = analysis.new_layovers if not is_digest else analysis.layovers
+    per_city: dict[str, CoolLayover] = {}
+    for c in lay:  # already sorted cheapest first
+        per_city.setdefault(c.city, c)
+    lay = list(per_city.values())
     if lay:
         title = "New long layovers in fun cities" if not is_digest else "Long layovers in fun cities"
         parts.append(f"<h3>{title}</h3><p><small>Itineraries with a stop of "

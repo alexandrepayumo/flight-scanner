@@ -2,15 +2,61 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import random
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 
-from fast_flights import FlightQuery, FlightsNotFound, Passengers, create_query, get_flights
+from fast_flights import FlightQuery, FlightsNotFound, Passengers, create_query, fetch_flights_html
+from fast_flights.model import Airport, Flights, SimpleDatetime, SingleFlight
+from fast_flights.parser import _parse_time
+from selectolax.lexbor import LexborHTMLParser
 
 log = logging.getLogger(__name__)
+
+
+class BlockedOrChanged(Exception):
+    """Google returned a page without flight data (bot check, consent page, layout change)."""
+
+
+def parse_results(html: str) -> list[Flights]:
+    """Parse Google Flights HTML.
+
+    Based on fast_flights.parser, with two fixes: it reads both the "best"
+    (payload[2]) and "other" (payload[3]) result blocks, and it skips single
+    malformed or unpriced entries instead of failing the whole search.
+    """
+    script = LexborHTMLParser(html).css_first(r"script.ds\:1")
+    if script is None:
+        raise BlockedOrChanged("no ds:1 script in page")
+    data = script.text().split("data:", 1)[1].rsplit(",", 1)[0]
+    if data.endswith("errorHasStatus: true"):
+        raise FlightsNotFound("no flights found")
+    payload = json.loads(data)
+
+    out: list[Flights] = []
+    for idx in (2, 3):
+        block = payload[idx] if len(payload) > idx else None
+        for k in (block[0] if block and block[0] else []):
+            try:
+                flight, price = k[0], k[1][0][1]
+                segs = [
+                    SingleFlight(
+                        from_airport=Airport(code=s[3], name=s[4]),
+                        to_airport=Airport(code=s[6], name=s[5]),
+                        departure=SimpleDatetime(date=tuple(s[20]), time=_parse_time(s[8])),
+                        arrival=SimpleDatetime(date=tuple(s[21]), time=_parse_time(s[10])),
+                        duration=s[11],
+                        plane_type=s[17],
+                    )
+                    for s in flight[2]
+                ]
+                out.append(Flights(type=flight[0], price=price, airlines=flight[1], flights=segs, carbon=None))
+            except (IndexError, TypeError, KeyError):
+                continue
+    return out
 
 
 @dataclass
@@ -115,8 +161,13 @@ class FlightSearcher:
                 time.sleep(self.delay + random.uniform(0, self.delay))
             self.requests += 1
             try:
-                results = get_flights(query)
-                return [_to_itinerary(r, url=url, **meta) for r in results if r.price]
+                results = parse_results(fetch_flights_html(query))
+                itins = [_to_itinerary(r, url=url, **meta) for r in results if r.price]
+                # The same flight can appear in both blocks; keep the cheapest copy.
+                unique: dict[str, Itinerary] = {}
+                for it in sorted(itins, key=lambda i: i.price):
+                    unique.setdefault(it.key, it)
+                return list(unique.values())
             except FlightsNotFound:
                 return []
             except Exception as exc:  # network errors, bot pages, parser changes

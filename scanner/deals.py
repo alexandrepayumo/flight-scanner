@@ -79,7 +79,7 @@ def find_cool_layovers(itins: list[Itinerary], cool: dict[str, str], min_hours: 
                 found.append(CoolLayover(it, lay.airport, cool[lay.airport], round(hours, 1)))
     # One entry per itinerary/airport, cheapest first.
     seen, unique = set(), []
-    for c in sorted(found, key=lambda c: c.itinerary.price):
+    for c in sorted(found, key=lambda c: (c.itinerary.price, -c.hours)):
         k = (c.itinerary.key, c.airport)
         if k not in seen:
             seen.add(k)
